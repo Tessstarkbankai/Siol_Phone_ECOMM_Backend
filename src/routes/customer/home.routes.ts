@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { Banner } from "../../models/Banner";
 import { Category } from "../../models/Category";
-import { Product } from "../../models/Product";
+import { Product, ProductSize } from "../../models/Product";
 import { Promo } from "../../models/Promo";
 import { Video } from "../../models/Video";
 import { ok } from "../../utils/envelope";
@@ -26,6 +26,9 @@ type ProductRow = {
   brand: string;
   price: number;
   salePercentage: number;
+  stock?: number;
+  colors?: string[];
+  sizes?: ProductSize[];
   images: Array<{
     url: string;
     isCover?: boolean;
@@ -64,12 +67,12 @@ customerHomeRouter.get(
         Banner.find().sort({ createdAt: -1 }).limit(6).lean<BannerRow[]>(),
         Category.find().sort({ name: 1 }).lean<CategoryRow[]>(),
         Product.find({ status: "active" })
-          .select("title description brand price salePercentage images createdAt")
+          .select("title description brand price salePercentage stock colors sizes images createdAt")
           .sort({ createdAt: -1 })
           .limit(8)
           .lean<ProductRow[]>(),
         Product.find({ status: "active", isSpotlight: true })
-          .select("title description brand price salePercentage images createdAt")
+          .select("title description brand price salePercentage stock colors sizes images createdAt")
           .sort({ createdAt: -1 })
           .limit(6)
           .lean<ProductRow[]>(),
@@ -111,6 +114,9 @@ customerHomeRouter.get(
         price: item.price,
         finalPrice,
         salePercentage: item.salePercentage,
+        stock: item.stock ?? 20,
+        colors: item.colors ?? [],
+        sizes: item.sizes ?? ["M"],
         createdAt: item.createdAt.toISOString(),
       };
     };

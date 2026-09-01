@@ -103,35 +103,30 @@ async function getWishlistResponse(userId: string) {
 }
 
 function getSelectedvariant(
-  product: { colors: string[]; sizes: ProductSize[] },
-  colorValue: string,
-  sizeValue: string,
+  product: { colors?: string[]; sizes?: ProductSize[] },
+  colorValue?: string,
+  sizeValue?: string,
 ) {
   let color: string | undefined;
   let size: ProductSize | undefined;
 
-  if (product.colors.length > 0) {
-    if (!colorValue) {
-      throw new AppError(400, "Color is required");
-    }
+  const colors = product.colors || [];
+  const sizes = product.sizes || [];
 
-    if (!product.colors.includes(colorValue)) {
-      throw new AppError(400, "Selected color is invalid");
+  if (colors.length > 0) {
+    if (colorValue && colors.includes(colorValue)) {
+      color = colorValue;
+    } else {
+      color = colors[0];
     }
-
-    color = colorValue;
   }
 
-  if (product.sizes.length > 0) {
-    if (!sizeValue) {
-      throw new AppError(400, "Size is required");
+  if (sizes.length > 0) {
+    if (sizeValue && sizes.includes(sizeValue as ProductSize)) {
+      size = sizeValue as ProductSize;
+    } else {
+      size = sizes[0];
     }
-
-    if (!product.sizes.includes(sizeValue as ProductSize)) {
-      throw new AppError(400, "Selected size is invalid");
-    }
-
-    size = sizeValue as ProductSize;
   }
 
   return { color, size };
