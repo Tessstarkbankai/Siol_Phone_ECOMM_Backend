@@ -23,13 +23,26 @@ import { adminSettingsRouter } from "./routes/admin/settings.routes";
 import { adminDashboardRouter } from "./routes/admin/dashboard.routes";
 import { adminVideoRouter } from "./routes/admin/video.routes";
 import { customerHomeRouter } from "./routes/customer/home.routes";
+import { customerVendorApplyRouter } from "./routes/customer/vendor-apply.routes";
+import { customerStorefrontRouter } from "./routes/customer/storefront.routes";
+import { customerReviewRouter } from "./routes/customer/review.routes";
+import { adminVendorManageRouter } from "./routes/admin/vendor-manage.routes";
+import { adminProductModerationRouter } from "./routes/admin/product-moderation.routes";
+import { adminPayoutRouter } from "./routes/admin/payout.routes";
+import { vendorProductRouter } from "./routes/vendor/product.routes";
+import { vendorOrderRouter } from "./routes/vendor/orders.routes";
+import { vendorProfileRouter } from "./routes/vendor/profile.routes";
+import { vendorDashboardRouter } from "./routes/vendor/dashboard.routes";
+import { vendorPayoutRouter } from "./routes/vendor/payout.routes";
 
 async function mainEntryFunction() {
   await connectDB();
 
   const app = express();
 
-  const corsOrigins = (process.env.CORS_ORIGINS || "http://localhost:3000")
+  const corsOrigins = (
+    process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:5173"
+  )
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
@@ -61,20 +74,33 @@ async function mainEntryFunction() {
   // customer routes
   app.use("/customer", customerHomeRouter);
   app.use("/customer", customerProductRouter);
+  app.use("/customer", customerStorefrontRouter);
+  app.use("/customer", customerReviewRouter);
   app.use("/customer", customerAddressRouter);
   app.use("/customer", customerPromoRouter);
   app.use("/customer", customerCartWishlistRouter);
   app.use("/customer", customerCheckoutRouter);
   app.use("/customer", customerCheckoutWithPointsRouter);
   app.use("/customer", customerOrderRouter);
+  app.use("/customer", customerVendorApplyRouter);
 
   // admin routes
+  app.use("/admin", adminProductModerationRouter);
+  app.use("/admin", adminVendorManageRouter);
+  app.use("/admin", adminPayoutRouter);
   app.use("/admin", adminProductRouter);
   app.use("/admin", adminPromoRouter);
   app.use("/admin", adminOrderRouter);
   app.use("/admin", adminSettingsRouter);
   app.use("/admin", adminDashboardRouter);
   app.use("/admin", adminVideoRouter);
+
+  // vendor routes
+  app.use("/vendor", vendorProductRouter);
+  app.use("/vendor", vendorOrderRouter);
+  app.use("/vendor", vendorProfileRouter);
+  app.use("/vendor", vendorDashboardRouter);
+  app.use("/vendor", vendorPayoutRouter);
 
   app.use(notFound);
   app.use(errorHandler);

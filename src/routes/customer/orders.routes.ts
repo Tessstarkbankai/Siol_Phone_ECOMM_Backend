@@ -32,10 +32,11 @@ customerOrderRouter.get(
 
     const orders = await Order.find({ user: dbUser._id })
       .select(
-        "totalItems totalAmount paymentStatus orderStatus  paidAt deliveredAt returnedAt createdAt",
+        "totalItems totalAmount paymentStatus orderStatus items paidAt deliveredAt returnedAt createdAt",
       )
+      .populate("items.product", "title images price")
       .sort({ createdAt: -1 })
-      .lean<CustomerOrderRow[]>();
+      .lean<any[]>();
 
     res.json(
       ok({
@@ -46,6 +47,18 @@ customerOrderRouter.get(
           totalAmount: orderItem.totalAmount,
           paymentStatus: orderItem.paymentStatus,
           orderStatus: orderItem.orderStatus,
+          items: (orderItem.items || []).map((it: any) => ({
+            product: it.product
+              ? {
+                  _id: String(it.product._id),
+                  title: it.product.title,
+                  images: it.product.images || [],
+                  price: it.product.price,
+                }
+              : null,
+            quantity: it.quantity,
+            price: it.price,
+          })),
           paidAt: orderItem.paidAt,
           deliveredAt: orderItem.deliveredAt,
           returnedAt: orderItem.returnedAt,

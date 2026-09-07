@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-export type UserRole = "user" | "admin";
+export type UserRole = "user" | "admin" | "vendor";
 
 const addressSchema = new mongoose.Schema(
   {
@@ -52,7 +52,7 @@ const UserSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user", "admin", "vendor"],
       default: "user",
     },
     points: {

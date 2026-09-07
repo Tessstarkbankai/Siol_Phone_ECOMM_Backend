@@ -6,8 +6,20 @@ export type ProductImage = {
   isCover: boolean;
 };
 
-export type ProductSize = "S" | "M" | "L" | "XL";
+export type ProductSize =
+  | "64GB"
+  | "128GB"
+  | "256GB"
+  | "512GB"
+  | "1TB"
+  | "2TB"
+  | "S"
+  | "M"
+  | "L"
+  | "XL"
+  | string;
 export type ProductStatus = "active" | "inactive";
+export type ProductApprovalStatus = "pending" | "approved" | "rejected";
 
 export type Product = {
   title: string;
@@ -22,6 +34,12 @@ export type Product = {
   salePercentage: number;
   isSpotlight: boolean;
   status: ProductStatus;
+  approvalStatus: ProductApprovalStatus;
+  rejectionReason?: string;
+  vendor?: Types.ObjectId; // null or undefined = platform/first-party product
+  showcaseBanners?: Array<{ url: string; publicId: string }>;
+  rating?: number;
+  reviewCount?: number;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -89,7 +107,6 @@ const ProductSchema = new mongoose.Schema(
     sizes: {
       type: [String],
       default: [],
-      enum: ["S", "M", "L", "XL"],
     },
     price: {
       type: Number,
@@ -108,6 +125,43 @@ const ProductSchema = new mongoose.Schema(
       enum: ["active", "inactive"],
       default: "active",
     },
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved", // default approved so existing first-party products remain active
+      index: true,
+    },
+    rejectionReason: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    vendor: {
+      type: Schema.Types.ObjectId,
+      ref: "Vendor",
+      default: null,
+      index: true,
+    },
+    showcaseBanners: {
+      type: [
+        {
+          url: { type: String, required: true, trim: true },
+          publicId: { type: String, required: true, trim: true },
+        },
+      ],
+      default: [],
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    reviewCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -116,6 +170,8 @@ const ProductSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+ProductSchema.index({ vendor: 1, approvalStatus: 1, status: 1 });
 
 export const Product =
   mongoose.models.Product || mongoose.model<Product>("Product", ProductSchema);

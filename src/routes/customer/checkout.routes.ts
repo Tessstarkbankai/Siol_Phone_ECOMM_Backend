@@ -9,7 +9,8 @@ import { Cart } from "../../models/Cart";
 import { AppError } from "../../utils/AppError";
 import { Promo } from "../../models/Promo";
 import { razorpay, toSubUnits } from "../../utils/razorpay";
-import { Order } from "../../models/Order";
+import { Order, type SubOrderItem } from "../../models/Order";
+import { Vendor } from "../../models/Vendor";
 import { ok } from "../../utils/envelope";
 import crypto from "crypto";
 
@@ -39,10 +40,12 @@ type CartRow = {
 
 type ProductRow = {
   _id: Types.ObjectId;
+  title: string;
   price: number;
   salePercentage: number;
   stock: number;
   status: "active" | "inactive";
+  vendor?: Types.ObjectId | null;
 };
 
 type PromoRow = {
@@ -97,7 +100,7 @@ customerCheckoutRouter.post(
     const products = await Product.find({
       _id: { $in: foundCart.items.map((item) => item.product) },
     })
-      .select("price salePercentage stock status")
+      .select("title price salePercentage stock status vendor")
       .lean<ProductRow[]>();
 
     const productMap = new Map(
@@ -106,6 +109,16 @@ customerCheckoutRouter.post(
 
     let totalItems = 0;
     let subTotal = 0;
+
+    // Group items by vendor for subOrders
+    const vendorMap = new Map<
+      string,
+      {
+        vendorId: Types.ObjectId | null;
+        items: SubOrderItem[];
+        subtotal: number;
+      }
+    >();
 
     const items = foundCart.items.map((cartItem) => {
       const product = productMap.get(String(cartItem.product));
@@ -127,9 +140,57 @@ customerCheckoutRouter.post(
       totalItems += cartItem.quantity;
       subTotal += finalPrice * cartItem.quantity;
 
+      const vKey = product.vendor ? String(product.vendor) : "platform";
+      const existingVendorGroup = vendorMap.get(vKey) || {
+        vendorId: product.vendor || null,
+        items: [],
+        subtotal: 0,
+      };
+
+      existingVendorGroup.items.push({
+        product: product._id,
+        title: product.title,
+        quantity: cartItem.quantity,
+        price: finalPrice,
+        color: cartItem.color,
+        size: cartItem.size,
+      });
+      existingVendorGroup.subtotal += finalPrice * cartItem.quantity;
+      vendorMap.set(vKey, existingVendorGroup);
+
       return {
         product: cartItem.product,
         quantity: cartItem.quantity,
+      };
+    });
+
+    // Lookup commission rates for vendors
+    const vendorIds = Array.from(vendorMap.values())
+      .map((v) => v.vendorId)
+      .filter((id): id is Types.ObjectId => Boolean(id));
+
+    const vendorDocs = await Vendor.find({ _id: { $in: vendorIds } }).select(
+      "commissionRate",
+    );
+    const vendorRateMap = new Map(
+      vendorDocs.map((v) => [String(v._id), v.commissionRate ?? 10]),
+    );
+
+    const subOrders = Array.from(vendorMap.values()).map((entry) => {
+      const rate = entry.vendorId
+        ? (vendorRateMap.get(String(entry.vendorId)) ?? 10)
+        : 0; // platform absorbs 0% commission from self
+      const commissionAmount = Math.round((entry.subtotal * rate) / 100);
+      const vendorPayoutAmount = Math.max(entry.subtotal - commissionAmount, 0);
+
+      return {
+        vendor: entry.vendorId,
+        items: entry.items,
+        subtotal: entry.subtotal,
+        commissionRate: rate,
+        commissionAmount,
+        vendorPayoutAmount,
+        status: "pending" as const,
       };
     });
 
@@ -184,6 +245,7 @@ customerCheckoutRouter.post(
       customerName: foundUser.name || selectedAddress.fullName,
       customerEmail: foundUser.email || "",
       items,
+      subOrders,
       totalItems,
       deliveryName: selectedAddress.fullName,
       deliveryAddress,
@@ -282,6 +344,20 @@ customerCheckoutRouter.post(
     foundOrder.paymentStatus = "paid";
     foundOrder.paymentId = razorpayPaymentId;
     foundOrder.paidAt = new Date();
+
+    // Confirm all sub-orders and increment vendor sales
+    for (const sub of foundOrder.subOrders) {
+      if (sub.status === "pending") {
+        sub.status = "confirmed";
+      }
+      if (sub.vendor) {
+        await Vendor.updateOne(
+          { _id: sub.vendor },
+          { $inc: { totalSales: sub.subtotal } },
+        );
+      }
+    }
+
     await foundOrder.save();
 
     res.json(ok({ _id: String(foundOrder._id) }));

@@ -7,7 +7,7 @@ import { Cart, CartItem } from "../../models/Cart";
 import { requireFound, requireText } from "../../utils/helpers";
 import { AppError } from "../../utils/AppError";
 import { Wishlist } from "../../models/Wishlist";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 
 export const customerCartWishlistRouter = Router();
 
@@ -38,9 +38,10 @@ type SyncCartItemInput = {
 };
 
 function formatProduct(product: ProductPreview) {
+  const images = product.images || [];
   const image =
-    product.images.find((item) => item.isCover)?.url ||
-    product.images[0]?.url ||
+    images.find((item) => item.isCover)?.url ||
+    images[0]?.url ||
     "";
 
   const finalPrice = product.salePercentage
@@ -88,7 +89,7 @@ async function getCartResponse(userId: string) {
 async function getWishlistResponse(userId: string) {
   const wishlist = await Wishlist.findOne({ user: userId }).populate(
     "products",
-    "title brand price salepercentage images",
+    "title brand price salePercentage images",
   );
 
   const products = (wishlist?.products || []) as Array<ProductPreview | null>;
@@ -168,6 +169,10 @@ customerCartWishlistRouter.post(
 
     requireText(productId, "Product id is required");
 
+    if (!mongoose.isValidObjectId(productId)) {
+      throw new AppError(400, "Invalid product id");
+    }
+
     if (Number.isNaN(quantity) || quantity < 1) {
       throw new AppError(400, "Quantity must be at least 1");
     }
@@ -192,20 +197,17 @@ customerCartWishlistRouter.post(
       );
     }
 
-    let cart = await Cart.findOne({ user: dbUser._id });
-
-    if (!cart) {
-      cart = await Cart.create({
-        user: dbUser._id,
-        items: [],
-      });
-    }
+    let cart = await Cart.findOneAndUpdate(
+      { user: dbUser._id },
+      { $setOnInsert: { user: dbUser._id, items: [] } },
+      { upsert: true, new: true },
+    );
 
     const itemIndex = cart.items.findIndex((item: CartItem) =>
       isSameCartItem(item, String(foundProduct._id), color, size),
     );
 
-    if (itemIndex > 0) {
+    if (itemIndex >= 0) {
       const nextQuantity = cart.items[itemIndex].quantity + quantity;
 
       if (nextQuantity > foundProduct.stock) {
@@ -374,14 +376,11 @@ customerCartWishlistRouter.post(
       ? (req.body.items as SyncCartItemInput[])
       : [];
 
-    let cart = await Cart.findOne({ user: dbUser._id });
-
-    if (!cart) {
-      cart = await cart.create({
-        user: dbUser._id,
-        items: [],
-      });
-    }
+    let cart = await Cart.findOneAndUpdate(
+      { user: dbUser._id },
+      { $setOnInsert: { user: dbUser._id, items: [] } },
+      { upsert: true, new: true },
+    );
 
     for (const rawItem of incomingItems) {
       const productId = String(rawItem.productId || "").trim();
@@ -389,20 +388,25 @@ customerCartWishlistRouter.post(
       const colorValue = String(rawItem.color || "").trim();
       const sizeValue = String(rawItem.size || "").trim();
 
-      if (!productId || Number.isNaN(quantity) || quantity < 1) {
-        continue;
-      }
-
-      const product = await Product.findOne({
-        _id: productId,
-        status: "active",
-      });
-
-      if (!product || product.stock < 1) {
+      if (
+        !productId ||
+        !mongoose.isValidObjectId(productId) ||
+        Number.isNaN(quantity) ||
+        quantity < 1
+      ) {
         continue;
       }
 
       try {
+        const product = await Product.findOne({
+          _id: productId,
+          status: "active",
+        });
+
+        if (!product || product.stock < 1) {
+          continue;
+        }
+
         const { color, size } = getSelectedvariant(
           product,
           colorValue,
@@ -431,11 +435,11 @@ customerCartWishlistRouter.post(
       } catch {
         continue;
       }
-
-      await cart.save();
-
-      res.json(ok(await getCartResponse(String(dbUser._id))));
     }
+
+    await cart.save();
+
+    res.json(ok(await getCartResponse(String(dbUser._id))));
   }),
 );
 

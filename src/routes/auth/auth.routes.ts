@@ -4,6 +4,7 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { clerkClient, getAuth } from "@clerk/express";
 import { AppError } from "../../utils/AppError";
 import { User } from "../../models/User";
+import { Vendor } from "../../models/Vendor";
 import { ok } from "../../utils/envelope";
 
 export const authRouter = Router();
@@ -23,10 +24,10 @@ authRouter.post(
 
     const extractEmailFromUserInfo =
       clerkUser.emailAddresses.find(
-        (item) => item.id === clerkUser.primaryEmailAddressId,
+        (item: { id: string; emailAddress: string }) => item.id === clerkUser.primaryEmailAddressId,
       ) || clerkUser.emailAddresses[0];
 
-    const email = extractEmailFromUserInfo.emailAddress;
+    const email = extractEmailFromUserInfo?.emailAddress;
 
     const fullName = [clerkUser.firstName, clerkUser.lastName]
       .filter(Boolean)
@@ -75,6 +76,8 @@ authRouter.post(
       },
     );
 
+    const vendor = await Vendor.findOne({ user: newlyCreatedDbUser._id });
+
     res.status(200).json(
       ok({
         user: {
@@ -83,6 +86,9 @@ authRouter.post(
           email: newlyCreatedDbUser.email,
           name: newlyCreatedDbUser.name,
           role: newlyCreatedDbUser.role,
+          vendorId: vendor?._id ? String(vendor._id) : undefined,
+          vendorStatus: vendor?.status || undefined,
+          storeSlug: vendor?.storeSlug || undefined,
         },
       }),
     );
@@ -105,6 +111,8 @@ authRouter.get(
       throw new AppError(404, "User is not found in DB");
     }
 
+    const vendor = await Vendor.findOne({ user: dbUser._id });
+
     res.status(200).json(
       ok({
         user: {
@@ -113,6 +121,9 @@ authRouter.get(
           email: dbUser.email,
           name: dbUser.name,
           role: dbUser.role,
+          vendorId: vendor?._id ? String(vendor._id) : undefined,
+          vendorStatus: vendor?.status || undefined,
+          storeSlug: vendor?.storeSlug || undefined,
         },
       }),
     );
