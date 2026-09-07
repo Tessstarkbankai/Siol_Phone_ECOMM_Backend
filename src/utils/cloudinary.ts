@@ -73,7 +73,12 @@ function saveBufferToLocalDisk(
 
   fs.writeFileSync(filepath, fileBuffer);
 
-  const baseUrl = process.env.BACKEND_URL || "http://localhost:5000";
+  const baseUrl = (
+    process.env.BACKEND_URL ||
+    (process.env.NODE_ENV === "production"
+      ? "https://siol-phone-ecomm-backend.onrender.com"
+      : "http://localhost:5000")
+  ).replace(/\/+$/, "");
   return {
     url: `${baseUrl}/uploads/${subfolder}/${filename}`,
     publicId,

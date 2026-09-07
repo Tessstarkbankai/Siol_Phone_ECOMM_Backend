@@ -40,17 +40,59 @@ async function mainEntryFunction() {
 
   const app = express();
 
-  const corsOrigins = (
-    process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:5173"
+  const allowedOrigins = (
+    process.env.CORS_ORIGINS ||
+    "http://localhost:3000,http://localhost:5173,https://siol-phone-ecomm-backend.onrender.com,https://siol-phone-ecomm-frontend.vercel.app"
   )
     .split(",")
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
     .filter(Boolean);
+
+  if (!allowedOrigins.includes("https://siol-phone-ecomm-frontend.vercel.app")) {
+    allowedOrigins.push("https://siol-phone-ecomm-frontend.vercel.app");
+  }
 
   app.use(
     cors({
-      origin: corsOrigins,
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+
+        const normalized = origin.replace(/\/+$/, "");
+
+        // Allow explicitly listed origins or wildcard or frontend domain
+        if (
+          allowedOrigins.includes(normalized) ||
+          allowedOrigins.includes("*") ||
+          normalized.includes("siol-phone-ecomm-frontend")
+        ) {
+          return callback(null, true);
+        }
+
+        // Allow localhost and 127.0.0.1 on any port for local development
+        if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalized)) {
+          return callback(null, true);
+        }
+
+        // Allow common hosted frontend environments
+        if (
+          normalized.endsWith(".vercel.app") ||
+          normalized.endsWith(".netlify.app") ||
+          normalized.endsWith(".onrender.com")
+        ) {
+          return callback(null, true);
+        }
+
+        return callback(null, false);
+      },
       credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+      ],
     }),
   );
 
