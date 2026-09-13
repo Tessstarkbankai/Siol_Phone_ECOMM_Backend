@@ -22,7 +22,7 @@ const VALID_STATUSES: DistributorStatus[] = [
 
 // List distributor applications with search & status filters
 adminDistributorRouter.get(
-  ["/distributors", "/"],
+  "/distributors",
   asyncHandler(async (req: Request, res: Response) => {
     const status = String(req.query.status || "").trim() as DistributorStatus;
     const search = String(req.query.search || "").trim();
@@ -82,7 +82,7 @@ adminDistributorRouter.get(
 
 // Get single application details
 adminDistributorRouter.get(
-  ["/distributors/:id", "/:id"],
+  "/distributors/:id",
   asyncHandler(async (req: Request, res: Response) => {
     const application = await DistributorApplication.findById(req.params.id)
       .populate("user", "name email role")
@@ -95,7 +95,7 @@ adminDistributorRouter.get(
 
 // Update status (Approve or Disapprove)
 adminDistributorRouter.patch(
-  ["/distributors/:id/status", "/:id/status"],
+  "/distributors/:id/status",
   asyncHandler(async (req: Request, res: Response) => {
     const { status, adminNotes } = req.body;
     const adminUser = await getDbUserFromReq(req);

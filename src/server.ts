@@ -132,7 +132,6 @@ async function mainEntryFunction() {
 
   // admin routes
   app.use("/admin", adminDistributorRouter);
-  app.use("/admin/distributors", adminDistributorRouter);
   app.use("/admin", adminProductModerationRouter);
   app.use("/admin", adminVendorManageRouter);
   app.use("/admin", adminPayoutRouter);
