@@ -29,6 +29,8 @@ import { customerReviewRouter } from "./routes/customer/review.routes";
 import { adminVendorManageRouter } from "./routes/admin/vendor-manage.routes";
 import { adminProductModerationRouter } from "./routes/admin/product-moderation.routes";
 import { adminPayoutRouter } from "./routes/admin/payout.routes";
+import { customerDistributorRouter } from "./routes/customer/distributor.routes";
+import { adminDistributorRouter } from "./routes/admin/distributor-manage.routes";
 import { vendorProductRouter } from "./routes/vendor/product.routes";
 import { vendorOrderRouter } from "./routes/vendor/orders.routes";
 import { vendorProfileRouter } from "./routes/vendor/profile.routes";
@@ -114,6 +116,8 @@ async function mainEntryFunction() {
   app.use("/auth", authRouter);
 
   // customer routes
+  app.use("/customer", customerDistributorRouter);
+  app.use("/customer/distributor", customerDistributorRouter);
   app.use("/customer", customerHomeRouter);
   app.use("/customer", customerProductRouter);
   app.use("/customer", customerStorefrontRouter);
@@ -127,6 +131,8 @@ async function mainEntryFunction() {
   app.use("/customer", customerVendorApplyRouter);
 
   // admin routes
+  app.use("/admin", adminDistributorRouter);
+  app.use("/admin/distributors", adminDistributorRouter);
   app.use("/admin", adminProductModerationRouter);
   app.use("/admin", adminVendorManageRouter);
   app.use("/admin", adminPayoutRouter);

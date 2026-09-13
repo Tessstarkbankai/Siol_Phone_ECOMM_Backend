@@ -10,7 +10,13 @@ import { ok } from "../../utils/envelope";
 
 type BannerRow = {
   _id: Types.ObjectId;
-  imageUrl: string;
+  mediaType?: "image" | "video";
+  imageUrl?: string;
+  videoUrl?: string;
+  title?: string;
+  tagline?: string;
+  link?: string;
+  order?: number;
   createdAt: Date;
 };
 
@@ -64,7 +70,7 @@ customerHomeRouter.get(
 
     const [banners, categories, recentProducts, spotlightProducts, promos, videos] =
       await Promise.all([
-        Banner.find().sort({ createdAt: -1 }).limit(6).lean<BannerRow[]>(),
+        Banner.find().sort({ order: 1, createdAt: -1 }).limit(20).lean<BannerRow[]>(),
         Category.find().sort({ name: 1 }).lean<CategoryRow[]>(),
         Product.find({ status: "active" })
           .select("title description brand price salePercentage stock colors sizes images createdAt")
@@ -125,8 +131,14 @@ customerHomeRouter.get(
       ok({
         banners: banners.map((bannerItem) => ({
           _id: String(bannerItem._id),
-          imageUrl: bannerItem.imageUrl,
-          createdAt: bannerItem.createdAt.toISOString(),
+          mediaType: bannerItem.mediaType || "image",
+          imageUrl: bannerItem.imageUrl || "",
+          videoUrl: bannerItem.videoUrl || "",
+          title: bannerItem.title || "",
+          tagline: bannerItem.tagline || "",
+          link: bannerItem.link || "",
+          order: typeof bannerItem.order === "number" ? bannerItem.order : 0,
+          createdAt: bannerItem.createdAt ? bannerItem.createdAt.toISOString() : new Date().toISOString(),
         })),
         categories: categories.map((categoryItem) => ({
           _id: String(categoryItem._id),
