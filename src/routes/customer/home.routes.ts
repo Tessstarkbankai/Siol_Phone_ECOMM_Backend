@@ -6,6 +6,7 @@ import { Category } from "../../models/Category";
 import { Product, ProductSize } from "../../models/Product";
 import { Promo } from "../../models/Promo";
 import { Video } from "../../models/Video";
+import { CommunityImage } from "../../models/CommunityImage";
 import { ok } from "../../utils/envelope";
 
 type BannerRow = {
@@ -61,6 +62,16 @@ type VideoRow = {
   createdAt: Date;
 };
 
+type CommunityImageRow = {
+  _id: Types.ObjectId;
+  imageUrl: string;
+  title?: string;
+  hashtag?: string;
+  link?: string;
+  order?: number;
+  createdAt: Date;
+};
+
 export const customerHomeRouter = Router();
 
 customerHomeRouter.get(
@@ -68,7 +79,7 @@ customerHomeRouter.get(
   asyncHandler(async (_req: Request, res: Response) => {
     const now = new Date();
 
-    const [banners, categories, recentProducts, spotlightProducts, promos, videos] =
+    const [banners, categories, recentProducts, spotlightProducts, promos, videos, communityImages] =
       await Promise.all([
         Banner.find().sort({ order: 1, createdAt: -1 }).limit(20).lean<BannerRow[]>(),
         Category.find().sort({ name: 1 }).lean<CategoryRow[]>(),
@@ -94,6 +105,10 @@ customerHomeRouter.get(
           .sort({ createdAt: -1 })
           .limit(10)
           .lean<VideoRow[]>(),
+        CommunityImage.find()
+          .sort({ order: 1, createdAt: -1 })
+          .limit(20)
+          .lean<CommunityImageRow[]>(),
       ]);
 
     const activeSpotlight =
@@ -162,6 +177,24 @@ customerHomeRouter.get(
           productLink: v.productLink || "",
           createdAt: v.createdAt.toISOString(),
         })),
+        communityImages:
+          communityImages.length > 0
+            ? communityImages.map((c) => ({
+                _id: String(c._id),
+                imageUrl: c.imageUrl,
+                title: c.title || "SiOL Community",
+                hashtag: c.hashtag || "#SiOLCommunity",
+                link: c.link || "",
+              }))
+            : banners
+                .filter((b) => Boolean(b.imageUrl))
+                .map((b) => ({
+                  _id: String(b._id),
+                  imageUrl: b.imageUrl || "",
+                  title: b.title || "SiOL Flagship Experience",
+                  hashtag: "#SiOLCommunity",
+                  link: b.link || "",
+                })),
       }),
     );
   }),

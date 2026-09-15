@@ -1,6 +1,7 @@
 import { getDbUserFromReq, requireAdmin } from "../../middleware/auth";
 import multer from "multer";
 import { Banner, BannerDocument, BannerMediaType } from "../../models/Banner";
+import { CommunityImage, CommunityImageDocument } from "../../models/CommunityImage";
 import { Router, type Request, type Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ok } from "../../utils/envelope";
@@ -208,6 +209,142 @@ adminSettingsRouter.patch(
     res.json(
       ok({
         items: items.map(mapBanner),
+      }),
+    );
+  }),
+);
+
+const COMMUNITY_FOLDER = "ecommerce-monster-video/community";
+
+type AdminCommunityItem = {
+  _id: string;
+  imageUrl: string;
+  imagePublicId?: string;
+  title: string;
+  hashtag?: string;
+  link?: string;
+  order: number;
+  createdAt: string;
+};
+
+function mapCommunityImage(item: CommunityImageDocument): AdminCommunityItem {
+  return {
+    _id: String(item._id),
+    imageUrl: item.imageUrl,
+    imagePublicId: item.imagePublicId || "",
+    title: item.title || "",
+    hashtag: item.hashtag || "#SiOLCommunity",
+    link: item.link || "",
+    order: typeof item.order === "number" ? item.order : 0,
+    createdAt: item.createdAt ? item.createdAt.toISOString() : new Date().toISOString(),
+  };
+}
+
+// Get all community images
+adminSettingsRouter.get(
+  "/settings/community",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const items = await CommunityImage.find().sort({ order: 1, createdAt: -1 });
+    res.json(
+      ok({
+        items: items.map(mapCommunityImage),
+      }),
+    );
+  }),
+);
+
+// Upload / create community images
+adminSettingsRouter.post(
+  "/settings/community",
+  upload.array("files", 10),
+  asyncHandler(async (req: Request, res: Response) => {
+    const dbUser = await getDbUserFromReq(req);
+    const files = (req.files || []) as Express.Multer.File[];
+    const { imageUrl, title = "", hashtag = "#SiOLCommunity", link = "" } = req.body;
+
+    const lastItem = await CommunityImage.findOne().sort({ order: -1 });
+    let nextOrder = (lastItem?.order ?? -1) + 1;
+
+    if (files.length > 0) {
+      for (const file of files) {
+        const uploadRes = await uploadSingleBufferToCloudinary(
+          file.buffer,
+          COMMUNITY_FOLDER,
+        );
+        await CommunityImage.create({
+          imageUrl: uploadRes.url,
+          imagePublicId: uploadRes.publicId,
+          title,
+          hashtag,
+          link,
+          order: nextOrder++,
+          createdBy: dbUser._id,
+        });
+      }
+    } else if (imageUrl) {
+      await CommunityImage.create({
+        imageUrl,
+        title,
+        hashtag,
+        link,
+        order: nextOrder++,
+        createdBy: dbUser._id,
+      });
+    } else {
+      throw new AppError(400, "Please upload at least one image or provide an image URL");
+    }
+
+    const allItems = await CommunityImage.find().sort({ order: 1, createdAt: -1 });
+    res.json(
+      ok({
+        items: allItems.map(mapCommunityImage),
+      }),
+    );
+  }),
+);
+
+// Delete community image
+adminSettingsRouter.delete(
+  "/settings/community/:id",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const item = await CommunityImage.findById(id);
+    if (!item) {
+      throw new AppError(404, "Community image not found");
+    }
+
+    await CommunityImage.findByIdAndDelete(id);
+
+    const items = await CommunityImage.find().sort({ order: 1, createdAt: -1 });
+    res.json(
+      ok({
+        message: "Community image deleted successfully",
+        items: items.map(mapCommunityImage),
+      }),
+    );
+  }),
+);
+
+// Reorder community images
+adminSettingsRouter.patch(
+  "/settings/community/reorder",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { imageIds } = req.body;
+
+    if (!Array.isArray(imageIds)) {
+      throw new AppError(400, "imageIds array is required");
+    }
+
+    await Promise.all(
+      imageIds.map((id: string, index: number) =>
+        CommunityImage.findByIdAndUpdate(id, { order: index }),
+      ),
+    );
+
+    const items = await CommunityImage.find().sort({ order: 1, createdAt: -1 });
+    res.json(
+      ok({
+        items: items.map(mapCommunityImage),
       }),
     );
   }),
