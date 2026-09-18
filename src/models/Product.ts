@@ -33,6 +33,7 @@ export type Product = {
   price: number;
   salePercentage: number;
   isSpotlight: boolean;
+  spotlightCategory?: "smartphone" | "feature_phone" | "none";
   status: ProductStatus;
   approvalStatus: ProductApprovalStatus;
   rejectionReason?: string;
@@ -119,6 +120,11 @@ const ProductSchema = new mongoose.Schema(
     isSpotlight: {
       type: Boolean,
       default: false,
+    },
+    spotlightCategory: {
+      type: String,
+      enum: ["smartphone", "feature_phone", "none"],
+      default: "none",
     },
     status: {
       type: String,

@@ -41,6 +41,7 @@ type ProductRow = {
     isCover?: boolean;
   }>;
   isSpotlight?: boolean;
+  spotlightCategory?: "smartphone" | "feature_phone" | "none";
   createdAt: Date;
 };
 
@@ -79,41 +80,63 @@ customerHomeRouter.get(
   asyncHandler(async (_req: Request, res: Response) => {
     const now = new Date();
 
-    const [banners, categories, recentProducts, spotlightProducts, promos, videos, communityImages] =
-      await Promise.all([
-        Banner.find().sort({ order: 1, createdAt: -1 }).limit(20).lean<BannerRow[]>(),
-        Category.find().sort({ name: 1 }).lean<CategoryRow[]>(),
-        Product.find({ status: "active" })
-          .select("title description brand price salePercentage stock colors sizes images createdAt")
-          .sort({ createdAt: -1 })
-          .limit(8)
-          .lean<ProductRow[]>(),
-        Product.find({ status: "active", isSpotlight: true })
-          .select("title description brand price salePercentage stock colors sizes images createdAt")
-          .sort({ createdAt: -1 })
-          .limit(6)
-          .lean<ProductRow[]>(),
-        Promo.find({
-          startsAt: { $lte: now },
-          endsAt: { $gte: now },
-          count: { $gt: 0 },
-        })
-          .sort({ createdAt: -1 })
-          .limit(4)
-          .lean<PromoRow[]>(),
-        Video.find({ status: "active" })
-          .sort({ createdAt: -1 })
-          .limit(10)
-          .lean<VideoRow[]>(),
-        CommunityImage.find()
-          .sort({ order: 1, createdAt: -1 })
-          .limit(20)
-          .lean<CommunityImageRow[]>(),
-      ]);
+    const [
+      banners,
+      categories,
+      recentProducts,
+      spotlightSmartphoneProducts,
+      spotlightFeaturePhoneProducts,
+      promos,
+      videos,
+      communityImages,
+    ] = await Promise.all([
+      Banner.find().sort({ order: 1, createdAt: -1 }).limit(20).lean<BannerRow[]>(),
+      Category.find().sort({ name: 1 }).lean<CategoryRow[]>(),
+      Product.find({ status: "active" })
+        .select("title description brand price salePercentage stock colors sizes images createdAt")
+        .sort({ createdAt: -1 })
+        .limit(8)
+        .lean<ProductRow[]>(),
+      Product.find({
+        status: "active",
+        $or: [
+          { spotlightCategory: "smartphone" },
+          { isSpotlight: true, spotlightCategory: { $ne: "feature_phone" } },
+        ],
+      })
+        .select("title description brand price salePercentage stock colors sizes images createdAt")
+        .sort({ createdAt: -1 })
+        .limit(8)
+        .lean<ProductRow[]>(),
+      Product.find({
+        status: "active",
+        spotlightCategory: "feature_phone",
+      })
+        .select("title description brand price salePercentage stock colors sizes images createdAt")
+        .sort({ createdAt: -1 })
+        .limit(8)
+        .lean<ProductRow[]>(),
+      Promo.find({
+        startsAt: { $lte: now },
+        endsAt: { $gte: now },
+        count: { $gt: 0 },
+      })
+        .sort({ createdAt: -1 })
+        .limit(4)
+        .lean<PromoRow[]>(),
+      Video.find({ status: "active" })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean<VideoRow[]>(),
+      CommunityImage.find()
+        .sort({ order: 1, createdAt: -1 })
+        .limit(20)
+        .lean<CommunityImageRow[]>(),
+    ]);
 
-    const activeSpotlight =
-      spotlightProducts.length > 0
-        ? spotlightProducts
+    const activeSmartphoneSpotlight =
+      spotlightSmartphoneProducts.length > 0
+        ? spotlightSmartphoneProducts
         : recentProducts.slice(0, 4);
 
     const mapProduct = (item: ProductRow) => {
@@ -142,6 +165,70 @@ customerHomeRouter.get(
       };
     };
 
+    const FALLBACK_FEATURE_PHONES = [
+      {
+        _id: "fp_siol_classic",
+        title: "SiOL Classic 4G VoLTE Keypad Phone",
+        description: "Legendary 28-day standby battery, crystal-clear VoLTE calling, wireless FM radio, and high-intensity LED torch.",
+        brand: "SiOL",
+        image: "/categories/feature-phone.png",
+        price: 2499,
+        finalPrice: 1999,
+        salePercentage: 20,
+        stock: 50,
+        colors: ["#1e293b", "#0284c7"],
+        sizes: ["VoLTE Edition"],
+        createdAt: new Date().toISOString(),
+      },
+      {
+        _id: "fp_nokia_3210",
+        title: "Nokia 3210 4G Heritage Retro Edition",
+        description: "Iconic Y2K design reimagined with 4G connectivity, Bluetooth 5.0, 1450mAh battery, and classic Snake game.",
+        brand: "Nokia",
+        image: "/Frame 1984079653.png",
+        price: 4499,
+        finalPrice: 3999,
+        salePercentage: 11,
+        stock: 40,
+        colors: ["#eab308", "#0f172a"],
+        sizes: ["Heritage Edition"],
+        createdAt: new Date().toISOString(),
+      },
+      {
+        _id: "fp_jiophone_prima",
+        title: "JioPhone Prima 4G Smart Feature Phone",
+        description: "KaiOS smart keypad phone with UPI digital payments, WhatsApp, YouTube, and front/rear cameras.",
+        brand: "JioPhone",
+        image: "/Frame 1984079647.png",
+        price: 2999,
+        finalPrice: 2599,
+        salePercentage: 13,
+        stock: 35,
+        colors: ["#0284c7", "#e11d48"],
+        sizes: ["4G Smart"],
+        createdAt: new Date().toISOString(),
+      },
+      {
+        _id: "fp_siol_power",
+        title: "SiOL Power 1000 Marathon Keypad Phone",
+        description: "Massive 3000mAh reverse-charging powerbank battery, dual SIM, ultra-loud 3D box speaker, and rugged drop-proof shell.",
+        brand: "SiOL",
+        image: "/categories/feature-phone.png",
+        price: 2799,
+        finalPrice: 2299,
+        salePercentage: 17,
+        stock: 45,
+        colors: ["#15803d", "#0f172a"],
+        sizes: ["Marathon 3000mAh"],
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    const activeFeaturePhoneSpotlight =
+      spotlightFeaturePhoneProducts.length > 0
+        ? spotlightFeaturePhoneProducts.map(mapProduct)
+        : FALLBACK_FEATURE_PHONES;
+
     res.json(
       ok({
         banners: banners.map((bannerItem) => ({
@@ -160,7 +247,9 @@ customerHomeRouter.get(
           name: categoryItem.name,
         })),
         recentProducts: recentProducts.map(mapProduct),
-        spotlightProducts: activeSpotlight.map(mapProduct),
+        spotlightProducts: activeSmartphoneSpotlight.map(mapProduct),
+        spotlightSmartphoneProducts: activeSmartphoneSpotlight.map(mapProduct),
+        spotlightFeaturePhoneProducts: activeFeaturePhoneSpotlight,
         coupons: promos.map((promoItem) => ({
           _id: String(promoItem._id),
           code: promoItem.code,

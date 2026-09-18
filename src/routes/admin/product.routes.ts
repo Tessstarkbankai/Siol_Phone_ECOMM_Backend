@@ -209,8 +209,14 @@ adminProductRouter.post(
     const salePercentage = Number(req.body.salePercentage || 0);
     const stock = Number(req.body.stock);
     const status = String(req.body.status || "active").trim();
-    const isSpotlight =
-      req.body.isSpotlight === true || req.body.isSpotlight === "true";
+    const rawSpotlightCat = String(req.body.spotlightCategory || "").trim();
+    let spotlightCategory: "smartphone" | "feature_phone" | "none" = "none";
+    if (rawSpotlightCat === "smartphone" || rawSpotlightCat === "feature_phone") {
+      spotlightCategory = rawSpotlightCat;
+    } else if (req.body.isSpotlight === true || req.body.isSpotlight === "true") {
+      spotlightCategory = "smartphone";
+    }
+    const isSpotlight = spotlightCategory !== "none";
     const rawColors = req.body.colors;
     const colors = Array.isArray(rawColors)
       ? rawColors
@@ -281,6 +287,7 @@ adminProductRouter.post(
       price,
       salePercentage,
       isSpotlight,
+      spotlightCategory,
       stock,
       status,
       approvalStatus: "approved",
@@ -314,8 +321,14 @@ adminProductRouter.put(
     const status = String(req.body.status || "active").trim() as
       | "active"
       | "inactive";
-    const isSpotlight =
-      req.body.isSpotlight === true || req.body.isSpotlight === "true";
+    const rawSpotlightCat = String(req.body.spotlightCategory || "").trim();
+    let spotlightCategory: "smartphone" | "feature_phone" | "none" = "none";
+    if (rawSpotlightCat === "smartphone" || rawSpotlightCat === "feature_phone") {
+      spotlightCategory = rawSpotlightCat;
+    } else if (req.body.isSpotlight === true || req.body.isSpotlight === "true") {
+      spotlightCategory = "smartphone";
+    }
+    const isSpotlight = spotlightCategory !== "none";
     const rawColors = req.body.colors;
     const colors = Array.isArray(rawColors)
       ? rawColors
@@ -425,6 +438,7 @@ adminProductRouter.put(
     product.price = price;
     product.salePercentage = salePercentage;
     product.isSpotlight = isSpotlight;
+    product.spotlightCategory = spotlightCategory;
     product.stock = stock;
     product.status = status;
     product.set("images", finalImages);
