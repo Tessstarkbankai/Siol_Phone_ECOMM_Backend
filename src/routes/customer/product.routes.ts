@@ -82,7 +82,35 @@ customerProductRouter.get(
       }
 
       if (category) {
-        query.category = category;
+        if (mongoose.isValidObjectId(category)) {
+          query.category = category;
+        } else {
+          const cleaned = category.toLowerCase().replace(/[-_]/g, " ");
+          let matchedCat = await Category.findOne({
+            name: { $regex: new RegExp(cleaned, "i") },
+          });
+          if (!matchedCat) {
+            if (cleaned.includes("smart") || cleaned.includes("phone")) {
+              matchedCat = await Category.findOne({ name: { $regex: /smart/i } });
+            } else if (cleaned.includes("feature")) {
+              matchedCat = await Category.findOne({ name: { $regex: /feature/i } });
+            } else if (cleaned.includes("tablet") || cleaned.includes("laptop")) {
+              matchedCat = await Category.findOne({ name: { $regex: /tablet/i } });
+            } else if (
+              cleaned.includes("audio") ||
+              cleaned.includes("bud") ||
+              cleaned.includes("tws") ||
+              cleaned.includes("wearable")
+            ) {
+              matchedCat = await Category.findOne({ name: { $regex: /audio|bud/i } });
+            }
+          }
+          if (matchedCat) {
+            query.category = matchedCat._id;
+          } else {
+            query.category = new mongoose.Types.ObjectId();
+          }
+        }
       }
       if (brand) {
         query.brand = brand;
